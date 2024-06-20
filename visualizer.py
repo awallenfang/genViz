@@ -7,12 +7,13 @@ import matplotlib.pyplot as plt
 from shader import Shader
 
 class Visualizer():
-    def __init__(self, audio_stream: np.array, sample_rate: float, x_origin = 0., y_origin = 0., width = 1920., height= 1080., spectrum_bins = 64, depth=0., shader = None):
+    def __init__(self, audio_stream: np.array, sample_rate: float, x_origin = 0., y_origin = 0., width = 1920., height= 1080., spectrum_bins = 128, depth=0., shader = None, padding=0.002):
         self.audio_stream = audio_stream
         self.sample_rate = sample_rate
         self.fps = 30.
         self.spectrum_bins = spectrum_bins
         self.z = depth
+        self.padding = padding
 
         if shader == None:
             self.shader = Shader("./shaders/default.frag")
@@ -57,6 +58,8 @@ class Visualizer():
 
     def fill_bins(self):
         # Run fft
+        # TODO: Do STFT from the tick function
+        # TODO: Convert to dB linear
         complex_fft_data: np.array[complex] = np.fft.fft(self.audio_stream[int(self.position):int(self.position) + int(self.samples_per_frame)])
         fft_magnitude: np.array[float] = np.sqrt(complex_fft_data.real ** 2 + complex_fft_data.imag ** 2)
 
@@ -68,23 +71,40 @@ class Visualizer():
 
             self.bins[i] = sum(fft_magnitude[start:start+bin_width])
 
+        # NOTE: Remove this once bins and in dB linear
+        factor = max(self.bins)
+        for i in range(0, self.spectrum_bins):
+            # self.bins[i] /= factor
+            self.bins[i] = 1 - (i * (1 / self.spectrum_bins)) ** 2
+
     def vertices(self):
-        vertices = np.array([
-            [-1.,-1.,self.z],
-            [-1.,1.,self.z],
-            [1.,1.,self.z],
-            [-1.,-1.,self.z],
-            [1.,1.,self.z],
-            [1.,-1.,self.z],
-        ])
-        return vertices
+        vertices = []
+        # x and y go from -1 to 1 so the full width is 2
+        bin_width = 2 / self.spectrum_bins
+
+        for i in range(0, self.spectrum_bins):
+            x = -1 + i * bin_width
+            y = -1 + 2 * self.bins[i]
+
+            bar_rect = [
+                [x + self.padding, y, self.z], # top left
+                [x + self.padding, -1, self.z], # bottom left
+                [x - self.padding + bin_width, -1, self.z], # bottom right
+                [x + self.padding, y, self.z], # top left
+                [x - self.padding + bin_width, -1, self.z], # bottom right
+                [x - self.padding + bin_width, y, self.z] # top right
+                        ]
+            vertices += bar_rect
+
+
+        return np.array(vertices)
     
     def bind_shader(self, shader: Shader):
         self.shader = shader
 
     def draw(self):
         self.shader.bind()
-        glBegin(GL_POLYGON)
+        glBegin(GL_TRIANGLES)
         for vert in self.vertices():
             glVertex3f(*vert)
         glEnd()
@@ -97,3 +117,4 @@ class Visualizer():
 
 def float_size(n=1):
     return sizeof(ctypes.c_float) * n
+

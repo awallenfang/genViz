@@ -15,9 +15,14 @@ if __name__ == "__main__":
     renderer = Renderer()
         
 
-    audio = np.zeros(48000)
+    x = np.linspace(0,400 * np.pi, 20000)
+    audio = np.sin(x)
+    audio += np.sin(2*x)
+    audio += np.sin(8*x)
+
     vis = Visualizer(audio, 48000)
     visualizers.append(vis)
+    vis.fill_bins()
 
     renderer.bind_visualizers(visualizers)
 

@@ -3,6 +3,7 @@ from OpenGL.GL import *
 # from OpenGL.GLU import *
 
 import numpy as np
+import matplotlib.pyplot as plt
 from shader import Shader
 
 class Visualizer():
@@ -58,6 +59,14 @@ class Visualizer():
         # Run fft
         complex_fft_data: np.array[complex] = np.fft.fft(self.audio_stream[int(self.position):int(self.position) + int(self.samples_per_frame)])
         fft_magnitude: np.array[float] = np.sqrt(complex_fft_data.real ** 2 + complex_fft_data.imag ** 2)
+
+        # Slice magnitudes into equal bins
+        # TODO: Make the bins into their own class with update functions for smoothing
+        bin_width = len(fft_magnitude)
+        for i in range(0, self.spectrum_bins):
+            start = i * bin_width
+
+            self.bins[i] = sum(fft_magnitude[start:start+bin_width])
 
     def vertices(self):
         vertices = np.array([

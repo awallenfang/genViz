@@ -1,4 +1,4 @@
-# genViz
+# gen_viz
 
 A visualizer generate for music videos with full GLSL shader support.
 

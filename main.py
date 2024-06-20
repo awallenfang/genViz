@@ -6,20 +6,19 @@ import numpy as np
 from visualizer import Visualizer
 from renderer import Renderer
 
-visualizers = []
-
-renderer = Renderer()
-    
 
 
 
-audio = np.zeros(48000)
-vis = Visualizer(audio, 48000)
-visualizers.append(vis)
+if __name__ == "__main__":
+    visualizers = []
 
-renderer.bind_visualizers(visualizers)
+    renderer = Renderer()
+        
 
-renderer.render()
+    audio = np.zeros(48000)
+    vis = Visualizer(audio, 48000)
+    visualizers.append(vis)
 
+    renderer.bind_visualizers(visualizers)
 
-
+    renderer.render()

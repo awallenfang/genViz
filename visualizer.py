@@ -17,6 +17,10 @@ class Visualizer():
         self.spectrum_bins = spectrum_bins
         self.z = depth
         self.padding = padding
+        self.x = x_origin
+        self.y = y_origin
+        self.width = width
+        self.height = height
 
         if shader == None:
             self.shader = Shader("./shaders/default.frag")
@@ -32,9 +36,12 @@ class Visualizer():
             self.fft_size = 2**i
             i+=1
 
-        self.position = 0.
+        self.transport_pos = 0.
 
         self.bins = [Bin(0) for i in range(0,spectrum_bins)]
+
+        self.transform = np.identity(4)
+        self.build_transform_matrix()
 
         verts = self.vertices()
 
@@ -68,33 +75,32 @@ class Visualizer():
         self.samples_per_frame = self.sample_rate / self.fps
 
     def tick(self):
-        self.position += self.samples_per_frame
+        self.transport_pos += self.samples_per_frame
         self.fill_bins()
 
     def fill_bins(self):
         # Run fft and pad remaining space with 0s
-        data_slice = np.zeros(int(self.fft_size))
-        data_slice[:int(self.samples_per_frame)] = self.audio_stream[int(self.position):int(self.position) + int(self.samples_per_frame)]
+        # data_slice = np.zeros(int(self.fft_size))
+        # data_slice[:int(self.samples_per_frame)] = self.audio_stream[int(self.transport_pos):int(self.transport_pos) + int(self.samples_per_frame)]
         
-        # Due to the mirrored nature we just need half the output
-        complex_fft_data: np.array[complex] = np.fft.fft(data_slice)[:len(data_slice) // 2 + 1]
-        fft_magnitude: np.array[float] = complex_fft_data.real ** 2 + complex_fft_data.imag ** 2
+        # # Due to the mirrored nature we just need half the output
+        # complex_fft_data: np.array[complex] = np.fft.fft(data_slice)[:len(data_slice) // 2 + 1]
+        # fft_magnitude: np.array[float] = complex_fft_data.real ** 2 + complex_fft_data.imag ** 2
 
-        # Convert the magnitudes to dB
-        # TODO: Check if this is the correct dB formula
-        fft_magnitude = 10 * np.log10(fft_magnitude)
-        fft_magnitude[fft_magnitude < -90.] = -90.
+        # # Convert the magnitudes to dB
+        # # TODO: Check if this is the correct dB formula
+        # fft_magnitude = 10 * np.log10(fft_magnitude)
+        # fft_magnitude[fft_magnitude < -90.] = -90.
 
 
         # Slice magnitudes into equal bins
-        bin_width = len(fft_magnitude) // self.spectrum_bins
+        bin_width = 1092 // self.spectrum_bins #len(fft_magnitude) // self.spectrum_bins
         for i in range(0, self.spectrum_bins):
             start = i * bin_width
-            bin_sum = sum(fft_magnitude[start:start+bin_width]) / bin_width
+            # bin_sum = sum(fft_magnitude[start:start+bin_width]) / bin_width
 
-            self.bins[i].update(bin_sum) 
-
-        print(self.bins)
+            # self.bins[i].update(bin_sum) 
+            self.bins[i].update(i / self.spectrum_bins)
 
     def vertices(self):
         vertices = []
@@ -123,6 +129,10 @@ class Visualizer():
 
     def draw(self):
         self.shader.bind()
+        # TODO: Bind transformation matrix
+        transform_location = glGetUniformLocation(self.shader.program, 'transform')
+
+        glUniformMatrix4fv(transform_location,1,False,self.transform)
         glBegin(GL_TRIANGLES)
         for vert in self.vertices():
             glVertex3f(*vert)
@@ -131,6 +141,38 @@ class Visualizer():
         # TODO: Figure out vertex arrays later
         # glBindVertexArray(self.vao)
         # glDrawArrays(GL_TRIANGLES, 0, len(self.vertices()))
+
+    def set_position(self, x, y):
+        self.x = x
+        self.y = y
+        self.build_transform_matrix()
+
+    def set_width(self, width):
+        self.width = width
+        self.build_transform_matrix()
+
+    def set_height(self, height):
+        self.height = height
+        self.build_transform_matrix()
+
+    def build_transform_matrix(self):
+        screen_width = glutGet(GLUT_SCREEN_WIDTH) // 2
+        screen_height = glutGet(GLUT_SCREEN_HEIGHT)
+        print(screen_width, screen_height)
+
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0)
+        ortho = glGetFloatv(GL_PROJECTION_MATRIX)
+        print(ortho)
+
+        self.transform =  np.array([[self.width / screen_width, 0, 0, self.x / screen_width],
+                                   [0,self.height / screen_height,0, self.y / screen_height],
+                                   [0,0,1,0],
+                                   [0,0,0,1]])
+        print(self.transform)
+
+
 
     
 

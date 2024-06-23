@@ -7,8 +7,6 @@ from visualizer import Visualizer
 from renderer import Renderer
 
 
-
-
 if __name__ == "__main__":
     visualizers = []
 
@@ -24,6 +22,8 @@ if __name__ == "__main__":
     audio /= 4.
 
     vis = Visualizer(audio, 48000)
+    vis.set_position(250,100)
+    vis.set_height(500)
     visualizers.append(vis)
 
     renderer.bind_visualizers(visualizers)

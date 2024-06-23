@@ -158,22 +158,11 @@ class Visualizer():
     def build_transform_matrix(self):
         screen_width = glutGet(GLUT_SCREEN_WIDTH) // 2
         screen_height = glutGet(GLUT_SCREEN_HEIGHT)
-        print(screen_width, screen_height)
-
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0)
-        ortho = glGetFloatv(GL_PROJECTION_MATRIX)
-        print(ortho)
 
         self.transform =  np.array([[self.width / screen_width, 0, 0, self.x / screen_width],
                                    [0,self.height / screen_height,0, self.y / screen_height],
                                    [0,0,1,0],
                                    [0,0,0,1]])
-        print(self.transform)
-
-
-
     
 
 def float_size(n=1):

@@ -43,6 +43,7 @@ class Renderer():
         glClear (GL_COLOR_BUFFER_BIT)
 
         for vis in self.visualizers:
+            vis.tick()
             vis.draw()
 
         glutSwapBuffers(self.window)
@@ -50,6 +51,7 @@ class Renderer():
     def render(self):
         # self.init_glut()
         glutDisplayFunc(self.display_callback)
+        glutIdleFunc(self.display_callback)
         glutMainLoop()
         
     

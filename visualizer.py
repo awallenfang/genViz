@@ -6,8 +6,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from shader import Shader
 
+from bin import Bin
+
 class Visualizer():
     def __init__(self, audio_stream: np.array, sample_rate: float, x_origin = 0., y_origin = 0., width = 1920., height= 1080., spectrum_bins = 128, depth=0., shader = None, padding=0.002):
+        
         self.audio_stream = audio_stream
         self.sample_rate = sample_rate
         self.fps = 30.
@@ -22,9 +25,16 @@ class Visualizer():
 
         self.samples_per_frame = self.sample_rate / self.fps
 
+        self.fft_size = 0
+        i = 0
+        # Choose the smallest power of two that can incapsulate all frames for a fast fft and free smoothing
+        while self.fft_size < self.samples_per_frame:
+            self.fft_size = 2**i
+            i+=1
+
         self.position = 0.
 
-        self.bins = np.zeros(spectrum_bins)
+        self.bins = [Bin(0) for i in range(0,spectrum_bins)]
 
         verts = self.vertices()
 
@@ -45,6 +55,10 @@ class Visualizer():
         glBindBuffer(GL_ARRAY_BUFFER, 0)
         glBindVertexArray(0)
 
+        self.fill_bins()
+
+        print(f'Initialized Visualizer using audio stream with {len(audio_stream)} samples and {self.fps} FPS resulting in {self.samples_per_frame} samples/frame. \nUsing a fft buffer size of {self.fft_size} samples. \nWith a sample rate of {self.sample_rate} its duration is {len(self.audio_stream) / self.sample_rate} seconds')
+
     def set_fps(self, fps: float):
         self.fps = fps
         self.samples_per_frame = self.sample_rate / self.fps
@@ -55,27 +69,32 @@ class Visualizer():
 
     def tick(self):
         self.position += self.samples_per_frame
+        self.fill_bins()
 
     def fill_bins(self):
-        # Run fft
-        # TODO: Do STFT from the tick function
-        # TODO: Convert to dB linear
-        complex_fft_data: np.array[complex] = np.fft.fft(self.audio_stream[int(self.position):int(self.position) + int(self.samples_per_frame)])
-        fft_magnitude: np.array[float] = np.sqrt(complex_fft_data.real ** 2 + complex_fft_data.imag ** 2)
+        # Run fft and pad remaining space with 0s
+        data_slice = np.zeros(int(self.fft_size))
+        data_slice[:int(self.samples_per_frame)] = self.audio_stream[int(self.position):int(self.position) + int(self.samples_per_frame)]
+        
+        # Due to the mirrored nature we just need half the output
+        complex_fft_data: np.array[complex] = np.fft.fft(data_slice)[:len(data_slice) // 2 + 1]
+        fft_magnitude: np.array[float] = complex_fft_data.real ** 2 + complex_fft_data.imag ** 2
+
+        # Convert the magnitudes to dB
+        # TODO: Check if this is the correct dB formula
+        fft_magnitude = 10 * np.log10(fft_magnitude)
+        fft_magnitude[fft_magnitude < -90.] = -90.
+
 
         # Slice magnitudes into equal bins
-        # TODO: Make the bins into their own class with update functions for smoothing
-        bin_width = len(fft_magnitude)
+        bin_width = len(fft_magnitude) // self.spectrum_bins
         for i in range(0, self.spectrum_bins):
             start = i * bin_width
+            bin_sum = sum(fft_magnitude[start:start+bin_width]) / bin_width
 
-            self.bins[i] = sum(fft_magnitude[start:start+bin_width])
+            self.bins[i].update(bin_sum) 
 
-        # NOTE: Remove this once bins and in dB linear
-        factor = max(self.bins)
-        for i in range(0, self.spectrum_bins):
-            # self.bins[i] /= factor
-            self.bins[i] = 1 - (i * (1 / self.spectrum_bins)) ** 2
+        print(self.bins)
 
     def vertices(self):
         vertices = []
@@ -84,7 +103,7 @@ class Visualizer():
 
         for i in range(0, self.spectrum_bins):
             x = -1 + i * bin_width
-            y = -1 + 2 * self.bins[i]
+            y = -1 + 2 * self.bins[i].linear_val()
 
             bar_rect = [
                 [x + self.padding, y, self.z], # top left

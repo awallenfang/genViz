@@ -5,7 +5,7 @@ from OpenGL.GL import *
 # from OpenGL.GLU import *
 
 class Renderer():
-    def __init__(self, width=1920, height=1080, bg_color=(0.,1.,0.), fps=30.):
+    def __init__(self, width=500, height=500, bg_color=(0.,1.,0.), fps=30.):
         self.width = width
         self.height = height
         self.clear_col = bg_color
@@ -35,7 +35,7 @@ class Renderer():
     def glut_init(self):
         glutInit(sys.argv)
         glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB)
-        glutInitWindowSize(1920, 1080)
+        glutInitWindowSize(self.width, self.height)
         self.window = glutCreateWindow("test")
 
     def display_callback(self):

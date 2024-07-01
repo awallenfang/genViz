@@ -6,6 +6,9 @@ import numpy as np
 from visualizer import Visualizer
 from renderer import Renderer
 
+WINDOW_WIDTH = 500
+WINDOW_HEIGHT = 500
+
 
 if __name__ == "__main__":
     visualizers = []
@@ -21,11 +24,13 @@ if __name__ == "__main__":
 
     audio /= 4.
 
-    vis = Visualizer(audio, 48000)
-    vis.set_position(250,100)
+    vis = Visualizer(audio, 48000, window_height=WINDOW_HEIGHT, window_width=WINDOW_WIDTH)
+    vis.set_position(0,0)
     vis.set_height(500)
+    vis.set_width(500)
     visualizers.append(vis)
 
     renderer.bind_visualizers(visualizers)
 
     renderer.render()
+

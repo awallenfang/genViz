@@ -9,7 +9,7 @@ from shader import Shader
 from bin import Bin
 
 class Visualizer():
-    def __init__(self, audio_stream: np.array, sample_rate: float, x_origin = 0., y_origin = 0., width = 1920., height= 1080., spectrum_bins = 128, depth=0., shader = None, padding=0.002):
+    def __init__(self, audio_stream: np.array, sample_rate: float, x_origin = 0., y_origin = 0., window_width = 500, window_height = 500, width = 500, height= 500, spectrum_bins = 5, depth=0., shader = None, padding=0.002):
         
         self.audio_stream = audio_stream
         self.sample_rate = sample_rate
@@ -21,6 +21,11 @@ class Visualizer():
         self.y = y_origin
         self.width = width
         self.height = height
+        self.window_width = window_width
+        self.window_height = window_height
+
+        self.origin_offset_x = (window_width / 2) / self.window_width
+        self.origin_offset_y = (window_height / 2) / self.window_height
 
         if shader == None:
             self.shader = Shader("./shaders/default.frag")
@@ -131,8 +136,13 @@ class Visualizer():
         self.shader.bind()
         # TODO: Bind transformation matrix
         transform_location = glGetUniformLocation(self.shader.program, 'transform')
+        pos_location = glGetUniformLocation(self.shader.program, 'pos')
+
 
         glUniformMatrix4fv(transform_location,1,False,self.transform)
+        # print(self.x, self.y)
+        # print(self.x - self.origin_offset_x, self.y - self.origin_offset_y)
+        glUniform2fv(pos_location, 1, [self.x + self.origin_offset_x, self.y + self.origin_offset_y])
         glBegin(GL_TRIANGLES)
         for vert in self.vertices():
             glVertex3f(*vert)
@@ -143,24 +153,24 @@ class Visualizer():
         # glDrawArrays(GL_TRIANGLES, 0, len(self.vertices()))
 
     def set_position(self, x, y):
-        self.x = x
-        self.y = y
-        self.build_transform_matrix()
+        self.x = 2 * (x / self.window_width)
+        self.y = 2 * ((y / self.window_height) * -1)
 
     def set_width(self, width):
-        self.width = width
+        self.width = width / self.window_width
+        self.origin_offset_x = -(1 - self.width)
+        print(self.origin_offset_x)
         self.build_transform_matrix()
 
     def set_height(self, height):
-        self.height = height
+        self.height = height / self.window_height
+        self.origin_offset_y = (1 - self.height)
         self.build_transform_matrix()
 
     def build_transform_matrix(self):
-        screen_width = glutGet(GLUT_SCREEN_WIDTH) // 2
-        screen_height = glutGet(GLUT_SCREEN_HEIGHT)
 
-        self.transform =  np.array([[self.width / screen_width, 0, 0, self.x / screen_width],
-                                   [0,self.height / screen_height,0, self.y / screen_height],
+        self.transform =  np.array([[self.width, 0, 0, 0],
+                                   [0,self.height, 0, 0],
                                    [0,0,1,0],
                                    [0,0,0,1]])
     

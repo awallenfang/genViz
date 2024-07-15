@@ -9,7 +9,7 @@ from shader import Shader
 from bin import Bin
 
 class Visualizer():
-    def __init__(self, audio_stream: np.array, sample_rate: float, x_origin = 0., y_origin = 0., window_width = 500, window_height = 500, width = 500, height= 500, spectrum_bins = 64, depth=0., shader = None, padding=0.002):
+    def __init__(self, audio_stream: np.array, sample_rate: float, x_origin = 0., y_origin = 0., window_width = 500, window_height = 500, width = 500, height= 500, spectrum_bins = 128, depth=0., shader = None, padding=0.002):
         
         self.audio_stream = audio_stream
         self.sample_rate = sample_rate
@@ -17,16 +17,17 @@ class Visualizer():
         self.spectrum_bins = spectrum_bins
         self.z = depth
         self.padding = padding
-        self.x = x_origin
-        self.y = y_origin
-        self.width = width
-        self.height = height
+        
         self.window_width = window_width
         self.window_height = window_height
+        self.width = width / window_width
+        self.height = height / window_height
+        self.set_width(width)
+        self.set_height(height)
+        self.set_position(x_origin, y_origin)
+        
         self.finished = False
 
-        self.origin_offset_x = (window_width / 2) / self.window_width
-        self.origin_offset_y = (window_height / 2) / self.window_height
 
         if shader == None:
             self.shader = Shader("./shaders/default.frag")
@@ -98,6 +99,10 @@ class Visualizer():
         else:
             data_slice[:int(self.samples_per_frame)] = self.audio_stream[int(self.transport_pos):int(self.transport_pos) + int(self.samples_per_frame)]
         
+        # Map into [0,1]
+        data_slice += (data_slice + 1.) / 2
+        data_slice = np.clip(data_slice, 0, 1)
+        data_slice /= self.fft_size / 2
 
         data_slice *= self.fft_window
         # Due to the mirrored nature we just need half the output
@@ -105,13 +110,11 @@ class Visualizer():
         fft_magnitude: np.array[float] = complex_fft_data.real ** 2 + complex_fft_data.imag ** 2
 
         # Convert the magnitudes to dB
-        # TODO: Check if this is the correct dB formula
-        fft_magnitude = 10 * np.log10(fft_magnitude)
+        fft_magnitude = 10 * np.log10(fft_magnitude + 0.000000000001)
         fft_magnitude[fft_magnitude < -90.] = -90.
 
-
         # Slice magnitudes into equal bins
-        bin_width = 1092 // self.spectrum_bins #len(fft_magnitude) // self.spectrum_bins
+        bin_width = len(fft_magnitude) // self.spectrum_bins #len(fft_magnitude) // self.spectrum_bins
         for i in range(0, self.spectrum_bins):
             start = i * bin_width
             bin_sum = sum(fft_magnitude[start:start+bin_width]) / bin_width
@@ -152,8 +155,6 @@ class Visualizer():
 
 
         glUniformMatrix4fv(transform_location,1,False,self.transform)
-        # print(self.x, self.y)
-        # print(self.x - self.origin_offset_x, self.y - self.origin_offset_y)
         glUniform2fv(pos_location, 1, [self.x + self.origin_offset_x, self.y + self.origin_offset_y])
         glBegin(GL_TRIANGLES)
         for vert in self.vertices():

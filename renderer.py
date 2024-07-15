@@ -49,7 +49,6 @@ class Renderer():
         glutSwapBuffers(self.window)
 
     def render(self):
-        # self.init_glut()
         glutDisplayFunc(self.display_callback)
         glutIdleFunc(self.display_callback)
         glutMainLoop()

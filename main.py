@@ -2,18 +2,19 @@ from OpenGL.GLUT import *
 from OpenGL.GL import *
 # from OpenGL.GLU import *
 import numpy as np
+import librosa
 
 from visualizer import Visualizer
 from renderer import Renderer
 
-WINDOW_WIDTH = 500
-WINDOW_HEIGHT = 500
+WINDOW_WIDTH = 1280
+WINDOW_HEIGHT = 720
 
 
 if __name__ == "__main__":
     visualizers = []
 
-    renderer = Renderer()
+    renderer = Renderer(width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
         
 
     x = np.linspace(0,400 * np.pi, 2000000)
@@ -27,10 +28,10 @@ if __name__ == "__main__":
     # Normalize audio
     audio = audio / np.max(audio)
 
-    vis = Visualizer(audio, 48000, window_height=WINDOW_HEIGHT, window_width=WINDOW_WIDTH)
-    vis.set_position(0,0)
-    vis.set_height(500)
-    vis.set_width(500)
+    audio, sr = librosa.load("input.mp3", sr=None)
+
+    vis = Visualizer(audio, 48000, window_height=WINDOW_HEIGHT, window_width=WINDOW_WIDTH, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
+
     visualizers.append(vis)
 
     renderer.bind_visualizers(visualizers)

@@ -49,12 +49,6 @@ class Shader():
 
         self.check_error()
 
-        # success = glGetProgramiv( self.program, GL_LINK_STATUS)
-
-        # if not success:
-        #     print(f'Shader linking error:\n\n{glGetProgramInfoLog(self.program)}')
-        #     sys.exit()
-
         self.ready = True
 
     def bind(self):

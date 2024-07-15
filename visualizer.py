@@ -9,7 +9,7 @@ from shader import Shader
 from bin import Bin
 
 class Visualizer():
-    def __init__(self, audio_stream: np.array, sample_rate: float, x_origin = 0., y_origin = 0., window_width = 500, window_height = 500, width = 500, height= 500, spectrum_bins = 5, depth=0., shader = None, padding=0.002):
+    def __init__(self, audio_stream: np.array, sample_rate: float, x_origin = 0., y_origin = 0., window_width = 500, window_height = 500, width = 500, height= 500, spectrum_bins = 64, depth=0., shader = None, padding=0.002):
         
         self.audio_stream = audio_stream
         self.sample_rate = sample_rate
@@ -23,6 +23,7 @@ class Visualizer():
         self.height = height
         self.window_width = window_width
         self.window_height = window_height
+        self.finished = False
 
         self.origin_offset_x = (window_width / 2) / self.window_width
         self.origin_offset_y = (window_height / 2) / self.window_height
@@ -41,6 +42,7 @@ class Visualizer():
             self.fft_size = 2**i
             i+=1
 
+        self.fft_window = hann_window(self.fft_size)
         self.transport_pos = 0.
 
         self.bins = [Bin(0) for i in range(0,spectrum_bins)]
@@ -80,32 +82,42 @@ class Visualizer():
         self.samples_per_frame = self.sample_rate / self.fps
 
     def tick(self):
+        if self.finished:
+            return
+        
         self.transport_pos += self.samples_per_frame
+        if self.transport_pos >= len(self.audio_stream) - self.samples_per_frame:
+            self.finished = True
         self.fill_bins()
 
     def fill_bins(self):
         # Run fft and pad remaining space with 0s
-        # data_slice = np.zeros(int(self.fft_size))
-        # data_slice[:int(self.samples_per_frame)] = self.audio_stream[int(self.transport_pos):int(self.transport_pos) + int(self.samples_per_frame)]
+        data_slice = np.zeros(int(self.fft_size))
+        if self.transport_pos + self.samples_per_frame > len(self.audio_stream):
+            data_slice[:len(self.audio_stream) - int(self.transport_pos)] = self.audio_stream[int(self.transport_pos):]
+        else:
+            data_slice[:int(self.samples_per_frame)] = self.audio_stream[int(self.transport_pos):int(self.transport_pos) + int(self.samples_per_frame)]
         
-        # # Due to the mirrored nature we just need half the output
-        # complex_fft_data: np.array[complex] = np.fft.fft(data_slice)[:len(data_slice) // 2 + 1]
-        # fft_magnitude: np.array[float] = complex_fft_data.real ** 2 + complex_fft_data.imag ** 2
 
-        # # Convert the magnitudes to dB
-        # # TODO: Check if this is the correct dB formula
-        # fft_magnitude = 10 * np.log10(fft_magnitude)
-        # fft_magnitude[fft_magnitude < -90.] = -90.
+        data_slice *= self.fft_window
+        # Due to the mirrored nature we just need half the output
+        complex_fft_data: np.array[complex] = np.fft.fft(data_slice)[:len(data_slice) // 2 + 1]
+        fft_magnitude: np.array[float] = complex_fft_data.real ** 2 + complex_fft_data.imag ** 2
+
+        # Convert the magnitudes to dB
+        # TODO: Check if this is the correct dB formula
+        fft_magnitude = 10 * np.log10(fft_magnitude)
+        fft_magnitude[fft_magnitude < -90.] = -90.
 
 
         # Slice magnitudes into equal bins
         bin_width = 1092 // self.spectrum_bins #len(fft_magnitude) // self.spectrum_bins
         for i in range(0, self.spectrum_bins):
             start = i * bin_width
-            # bin_sum = sum(fft_magnitude[start:start+bin_width]) / bin_width
+            bin_sum = sum(fft_magnitude[start:start+bin_width]) / bin_width
 
-            # self.bins[i].update(bin_sum) 
-            self.bins[i].update(i / self.spectrum_bins)
+            self.bins[i].update(bin_sum) 
+            # self.bins[i].update(i / self.spectrum_bins)
 
     def vertices(self):
         vertices = []
@@ -153,22 +165,24 @@ class Visualizer():
         # glDrawArrays(GL_TRIANGLES, 0, len(self.vertices()))
 
     def set_position(self, x, y):
+        # Set the position and normalize it
         self.x = 2 * (x / self.window_width)
         self.y = 2 * ((y / self.window_height) * -1)
 
     def set_width(self, width):
+        # Normalize the width and set the offset to the space that is lost through the scaling
         self.width = width / self.window_width
         self.origin_offset_x = -(1 - self.width)
-        print(self.origin_offset_x)
         self.build_transform_matrix()
 
     def set_height(self, height):
+        # Normalize the height and set the offset to the space that is lost through the scaling
         self.height = height / self.window_height
         self.origin_offset_y = (1 - self.height)
         self.build_transform_matrix()
 
     def build_transform_matrix(self):
-
+        # Build the scale matrix
         self.transform =  np.array([[self.width, 0, 0, 0],
                                    [0,self.height, 0, 0],
                                    [0,0,1,0],
@@ -178,3 +192,7 @@ class Visualizer():
 def float_size(n=1):
     return sizeof(ctypes.c_float) * n
 
+def hann_window(size) -> np.array:
+    x = np.arange(0, size)
+    window = np.sin(np.pi * x / size) ** 2
+    return window

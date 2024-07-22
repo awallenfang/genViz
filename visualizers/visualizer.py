@@ -188,22 +188,6 @@ class VerticalBarVisualizer(BaseBarVisualizer):
         for vert, idx in self.build_vertices():
             glVertex3f(vert)
         glEnd()
-
-        verts, indices = self.build_vertices()
-        # # Bind VAO
-        # glBindVertexArray(self.vao)
-
-        # # Bind VBO
-        # glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
-        # glBufferData(GL_ARRAY_BUFFER, float_size(len(verts)), verts, GL_STATIC_DRAW)
-        # glVertexAttribPointer(0,3,GL_FLOAT, GL_FALSE, float_size(3), 0)
-
-        # glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
-        # glBufferData(GL_ELEMENT_ARRAY_BUFFER, 4*len(indices), indices, GL_STATIC_DRAW)
-        
-        # glDrawArrays(GL_TRIANGLES, 0, len(verts)//3)
-        # drawn_idx = glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, 0)
-        # glEnableVertexAttribArray(0)
         
         # TODO: Figure out vertex arrays later
         # glBindVertexArray(self.vao)

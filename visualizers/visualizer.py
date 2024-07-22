@@ -148,12 +148,6 @@ class VerticalBarVisualizer(BaseBarVisualizer):
                 [x - self.padding + bin_width, -1, self.z], # bottom right
                 [x - self.padding + bin_width, y, self.z] # top right
                         ]
-            # bar_rect_vert = [
-            #     x + self.padding, y, self.z, # top left
-            #     x - self.padding + bin_width, y, self.z, # top right
-            #     x + self.padding, -1, self.z, # bottom left
-            #     x - self.padding + bin_width, -1, self.z, # bottom right
-            #     ]
             
             base_idx = i*4
             bar_rect_idx = [

@@ -86,12 +86,14 @@ class VerticalBarVisualizer(BaseBarVisualizer):
         Tick a frame in the audio data.
         """
         if self.finished:
-            return
+            return True
         
         self.transport_pos += self.samples_per_frame
         if self.transport_pos >= len(self.audio_stream) - self.samples_per_frame:
             self.finished = True
         self.fill_bins()
+
+        return False
 
     def fill_bins(self):
         """

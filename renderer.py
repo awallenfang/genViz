@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 
 from OpenGL.GLUT import *
 from OpenGL.GL import *
@@ -14,6 +15,13 @@ class Renderer():
 
         self.init_camera()
         self.glut_init()
+
+        self.is_done = False
+
+        fourcc = cv2.VideoWriter.fourcc('X','V','I','D')
+        print(self.width, self.height)
+        self.video_writer: cv2.VideoWriter = cv2.VideoWriter('output.avi', fourcc, self.fps, (self.height, self.width))
+
 
     
 
@@ -43,8 +51,13 @@ class Renderer():
         glClear (GL_COLOR_BUFFER_BIT)
 
         for vis in self.visualizers:
-            vis.tick()
+            self.is_done = vis.tick()
             vis.draw()
+
+        if not self.is_done:
+            self.read_frame()
+        else:
+            self.video_writer.release()
 
         glutSwapBuffers(self.window)
 
@@ -53,4 +66,7 @@ class Renderer():
         glutIdleFunc(self.display_callback)
         glutMainLoop()
         
-    
+    def read_frame(self):        
+        out = glReadPixels(0,0,self.width, self.height, format=GL_RGB, type=GL_UNSIGNED_SHORT)
+                
+        self.video_writer.write(out)

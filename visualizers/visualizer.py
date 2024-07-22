@@ -7,10 +7,14 @@ import matplotlib.pyplot as plt
 from shader import Shader
 
 from bin import Bin
+from visualizers.base_bar_visualizer import BaseBarVisualizer
 
-class Visualizer():
+class VerticalBarVisualizer(BaseBarVisualizer):
     def __init__(self, audio_stream: np.array, sample_rate: float, x_origin = 0., y_origin = 0., window_width = 500, window_height = 500, width = 500, height= 500, spectrum_bins = 128, depth=0., shader = None, padding=0.002):
-        
+        """
+        Init a Vertical Bar Visualizer. This is the classical style of a visualizer with vertical bars being arranged side by side.
+        The audio_stream that should be displayed, as well as the sample_rate have to be delivered. 
+        """
         self.audio_stream = audio_stream
         self.sample_rate = sample_rate
         self.fps = 30.
@@ -27,6 +31,10 @@ class Visualizer():
         self.set_position(x_origin, y_origin)
         
         self.finished = False
+
+        self.vbo = glGenBuffers(1)
+        self.vertex_amt = 0
+        self.idx_amt = 0
 
 
         if shader == None:
@@ -51,30 +59,21 @@ class Visualizer():
         self.transform = np.identity(4)
         self.build_transform_matrix()
 
-        verts = self.vertices()
+        verts = self.build_vertices()
 
-        self.vao = GLuint(0)
-        glGenVertexArrays(1, self.vao)
+        self.vao = glGenVertexArrays(1)
         
-        self.vbo = GLuint(0)
-        glGenBuffers(1, self.vbo)
+        
+        self.vbo = glGenBuffers(1)
+        self.ebo = glGenBuffers(1)
 
-        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
-        glBufferData(GL_ARRAY_BUFFER,  verts, GL_STATIC_DRAW)
-
-        glBindVertexArray(self.vao)
-
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, float_size(3), 0)
-        glEnableVertexAttribArray(0)
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
-        glBindVertexArray(0)
 
         self.fill_bins()
 
         print(f'Initialized Visualizer using audio stream with {len(audio_stream)} samples and {self.fps} FPS resulting in {self.samples_per_frame} samples/frame. \nUsing a fft buffer size of {self.fft_size} samples. \nWith a sample rate of {self.sample_rate} its duration is {len(self.audio_stream) / self.sample_rate} seconds')
 
     def set_fps(self, fps: float):
+        
         self.fps = fps
         self.samples_per_frame = self.sample_rate / self.fps
 
@@ -83,6 +82,9 @@ class Visualizer():
         self.samples_per_frame = self.sample_rate / self.fps
 
     def tick(self):
+        """
+        Tick a frame in the audio data.
+        """
         if self.finished:
             return
         
@@ -92,6 +94,9 @@ class Visualizer():
         self.fill_bins()
 
     def fill_bins(self):
+        """
+        Fill the bins with the data that is at the current transport position
+        """
         # Run fft and pad remaining space with 0s
         data_slice = np.zeros(int(self.fft_size))
         if self.transport_pos + self.samples_per_frame > len(self.audio_stream):
@@ -122,8 +127,12 @@ class Visualizer():
             self.bins[i].update(bin_sum) 
             # self.bins[i].update(i / self.spectrum_bins)
 
-    def vertices(self):
+    def build_vertices(self):
+        """
+        Construct the vertex arrays from the spectrum bins
+        """
         vertices = []
+        indices = []
         # x and y go from -1 to 1 so the full width is 2
         bin_width = 2 / self.spectrum_bins
 
@@ -131,23 +140,42 @@ class Visualizer():
             x = -1 + i * bin_width
             y = -1 + 2 * self.bins[i].linear_val()
 
-            bar_rect = [
-                [x + self.padding, y, self.z], # top left
-                [x + self.padding, -1, self.z], # bottom left
-                [x - self.padding + bin_width, -1, self.z], # bottom right
-                [x + self.padding, y, self.z], # top left
-                [x - self.padding + bin_width, -1, self.z], # bottom right
-                [x - self.padding + bin_width, y, self.z] # top right
+            bar_rect_vert = [
+                x + self.padding, y, self.z, # top left
+                x + self.padding, -1, self.z, # bottom left
+                x - self.padding + bin_width, -1, self.z, # bottom right
+                x + self.padding, y, self.z, # top left
+                x - self.padding + bin_width, -1, self.z, # bottom right
+                x - self.padding + bin_width, y, self.z # top right
                         ]
-            vertices += bar_rect
+            # bar_rect_vert = [
+            #     x + self.padding, y, self.z, # top left
+            #     x - self.padding + bin_width, y, self.z, # top right
+            #     x + self.padding, -1, self.z, # bottom left
+            #     x - self.padding + bin_width, -1, self.z, # bottom right
+            #     ]
+            
+            base_idx = i*4
+            bar_rect_idx = [
+                base_idx + 0,base_idx + 2,base_idx + 3,
+                base_idx + 0,base_idx + 3,base_idx + 1
+            ]
+            vertices += bar_rect_vert
+            indices += bar_rect_idx
 
 
-        return np.array(vertices)
+        self.vertex_amt = len(vertices)
+        self.idx_amt = len(indices)
+
+        return (np.array(vertices), np.array(indices))
     
     def bind_shader(self, shader: Shader):
         self.shader = shader
 
     def draw(self):
+        """
+        Draw this visualizer into the currently active ramebuffer
+        """
         self.shader.bind()
         # TODO: Bind transformation matrix
         transform_location = glGetUniformLocation(self.shader.program, 'transform')
@@ -156,11 +184,27 @@ class Visualizer():
 
         glUniformMatrix4fv(transform_location,1,False,self.transform)
         glUniform2fv(pos_location, 1, [self.x + self.origin_offset_x, self.y + self.origin_offset_y])
-        glBegin(GL_TRIANGLES)
-        for vert in self.vertices():
-            glVertex3f(*vert)
-        glEnd()
+        # glBegin(GL_TRIANGLES)
+        # for vert in self.build_vertices():
+        #     glVertex3f(*vert)
+        # glEnd()
 
+        verts, indices = self.build_vertices()
+        # Bind VAO
+        glBindVertexArray(self.vao)
+
+        # Bind VBO
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+        glBufferData(GL_ARRAY_BUFFER, float_size(len(verts)), verts, GL_STATIC_DRAW)
+        glVertexAttribPointer(0,3,GL_FLOAT, GL_FALSE, float_size(3), 0)
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 4*len(indices), indices, GL_STATIC_DRAW)
+        
+        glDrawArrays(GL_TRIANGLES, 0, len(verts)//3)
+        drawn_idx = glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, 0)
+        glEnableVertexAttribArray(0)
+        
         # TODO: Figure out vertex arrays later
         # glBindVertexArray(self.vao)
         # glDrawArrays(GL_TRIANGLES, 0, len(self.vertices()))
@@ -183,7 +227,9 @@ class Visualizer():
         self.build_transform_matrix()
 
     def build_transform_matrix(self):
-        # Build the scale matrix
+        """
+        Build the scale transformation matrix
+        """
         self.transform =  np.array([[self.width, 0, 0, 0],
                                    [0,self.height, 0, 0],
                                    [0,0,1,0],

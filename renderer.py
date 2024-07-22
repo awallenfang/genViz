@@ -6,6 +6,9 @@ from OpenGL.GL import *
 
 class Renderer():
     def __init__(self, width=500, height=500, bg_color=(0.,1.,0.), fps=30.):
+        """
+        Initialise a renderer that takes care of when and how the visualizers render
+        """
         self.width = width
         self.height = height
         self.clear_col = bg_color

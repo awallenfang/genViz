@@ -4,7 +4,7 @@ from OpenGL.GL import *
 import numpy as np
 import librosa
 
-from visualizer import Visualizer
+from visualizers.visualizer import VerticalBarVisualizer
 from renderer import Renderer
 
 WINDOW_WIDTH = 1280
@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     audio, sr = librosa.load("input.mp3", sr=None)
 
-    vis = Visualizer(audio, 48000, window_height=WINDOW_HEIGHT, window_width=WINDOW_WIDTH, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
+    vis = VerticalBarVisualizer(audio, sr, window_height=WINDOW_HEIGHT, window_width=WINDOW_WIDTH, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
 
     visualizers.append(vis)
 
